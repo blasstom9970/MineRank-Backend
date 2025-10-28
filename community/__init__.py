@@ -1,0 +1,1 @@
+from community.endpoint import bp as community_bp
