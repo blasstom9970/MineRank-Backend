@@ -10,7 +10,7 @@ load_dotenv()
 # Flask 설정
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-CORS(app, resources={r"/*": {"origins": "https://mine-rank.netlify.app"}}) # 마인랭크 클라만 허용
+CORS(app)#, resources={r"/*": {"origins": os.getenv("FRONTEND_URL")}}) # 마인랭크 클라만 허용
 
 # DuckDB 설정
 db_path:str = os.getenv("DUCKDB_PATH") # type: ignore
@@ -23,9 +23,9 @@ from server import server_bp
 from user import user_bp
 from community import community_bp
 
-app.register_blueprint(server_bp)
-app.register_blueprint(user_bp)
-app.register_blueprint(community_bp, url_prefix='/community')
+app.register_blueprint(server_bp, url_prefix='/api')
+app.register_blueprint(user_bp, url_prefix='/api')
+app.register_blueprint(community_bp, url_prefix='/api/community')
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")

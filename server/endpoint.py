@@ -42,7 +42,11 @@ def reviews():
         time.sleep(1)  # 처리 지연 시뮬레이션
         return jsonify({"message": "리뷰가 성공적으로 제출되었습니다."}), 201
     else: # GET 요청 처리
-        review_list = []
+        cursor.execute("SELECT * FROM review;")
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description] # 칼럼 이름
+
+        review_list = [dict(zip(columns, row)) for row in rows][len(server_list):] # 각 행을 딕셔너리로 변환
 
         for idx, review in enumerate(review_list):
             if "id" not in review:
@@ -51,10 +55,15 @@ def reviews():
     
 @bp.route("/gallery", methods=['GET', 'POST'])
 def gallery():
-    return jsonify([
-        { "id": 1, "serverId": 1, "user": "gg", "imageUrl": 'https://picsum.photos/seed/gallery1/600/400', "caption": '새로운 성 건축!', "timestamp": '2023-10-25T12:00:00Z' },
-        { "id": 2, "serverId": 1, "user": "gg", "imageUrl": 'https://picsum.photos/seed/gallery2/600/400', "caption": '스플리프 토너먼트에서 우승했어요!', "timestamp": '2023-10-24T20:00:00Z' },
-        { "id": 3, "serverId": 1, "user": "gg", "imageUrl": 'https://picsum.photos/seed/gallery3/600/400', "caption": '스폰에서 찍은 단체 사진.', "timestamp": '2023-10-23T15:45:00Z' },
-        { "id": 4, "serverId": 2, "user": "gg", "imageUrl": 'https://picsum.photos/seed/gallery4/600/400', "caption": '내 건축 부지가 점점 멋져지고 있어요.', "timestamp": '2023-10-26T09:00:00Z' },
-        { "id": 5, "serverId": 3, "user": "gg", "imageUrl": 'https://picsum.photos/seed/gallery5/600/400', "caption": '멋진 던전을 발견했어요!', "timestamp": '2023-10-22T22:10:00Z' },
-    ]), 200
+    if request.method == "POST":
+        print(request.get_json())
+        time.sleep(1)  # 처리 지연 시뮬레이션
+        return jsonify({"message": "갤러리 게시물이 성공적으로 제출되었습니다."}), 201
+    else:
+        cursor.execute("SELECT * FROM gallery;")
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description] # 칼럼 이름
+
+        gallery_list = [dict(zip(columns, row)) for row in rows][len(server_list):] # 각 행을 딕셔너리로 변환
+
+        return jsonify(gallery_list), 200

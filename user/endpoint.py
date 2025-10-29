@@ -4,39 +4,86 @@ from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
 
 bp = blueprints.Blueprint('user', __name__)
-# bcrypt = Bcrypt(current_app)
+
+# Flask-Bcrypt: 앱 컨텍스트에서 동작하므로 전역 인스턴스만 생성
+bcrypt = Bcrypt()
 
 db = DataBaseManager()
 cursor:DuckDBPyConnection = db.cursor # type: ignore
 
-db.init_db('users','''
-    id INTEGER PRIMARY KEY,
-    username TEXT,
-    PASSWORD TEXT
-''')
+# db.init_db('users','''
+#     id INTEGER PRIMARY KEY,
+#     username TEXT,
+#     PASSWORD TEXT
+# ''')
 
 @bp.route('/users/')
 def get_users():
-    cursor.execute("SELECT * FROM users")
-    rows = cursor.fetchall() # 실제 데이터
-    columns = [desc[0] for desc in cursor.description] # 칼럼 이름
-
-    users = [dict(zip(columns, row)) for row in rows] # 각 행을 딕셔너리로 변환
+    # 비밀번호는 반환하지 않음 (기존 경로 유지)
+    cursor.execute("SELECT id, username FROM users")
+    rows = cursor.fetchall()
+    users = [{"id": r[0], "username": r[1]} for r in rows]
     return jsonify(users)
 
-@bp.route('/me')
+@bp.route('/auth/me')
 def get_my_id():
-    return "1", 200 #session["user_id"]
+    if "user_id" in session:
+        return str(session["user_id"]), 200
+    else:
+        return "-1", 200
 
-@bp.route('/login', methods=['POST'])
+@bp.route('/auth/login', methods=['POST'])
 def login():
-    request.get_json()
-    return jsonify({"message": "로그인 기능은 아직 구현되지 않았습니다."}), 501
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '')
 
-@bp.route('/signup', methods=['POST'])
+    if not username or not password:
+        return jsonify({"error": "USERNAME_OR_PASSWORD_MISSING"}), 400
+
+    cursor.execute("SELECT id, username, password FROM users WHERE username = ?", [username])
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "INVALID_CREDENTIALS"}), 401
+
+    stored_hash = row[2] or ''
+    if not bcrypt.check_password_hash(stored_hash, password):
+        return jsonify({"error": "INVALID_CREDENTIALS"}), 401
+
+    session['user_id'] = int(row[0])
+    return jsonify({"id": int(row[0]), "username": row[1]}), 200
+
+@bp.route('/auth/signup', methods=['POST'])
 def signup():
-    return jsonify({"message": "회원가입 기능은 아직 구현되지 않았습니다."}), 501
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip()
+    password = (data.get('password') or '')
 
-@bp.route('/delete_account', methods=['POST']) # POST가 다루기 편함
+    if not username or not password:
+        return jsonify({"error": "USERNAME_OR_PASSWORD_MISSING"}), 400
+
+    # 중복 체크
+    cursor.execute("SELECT 1 FROM users WHERE username = ?", [username])
+    if cursor.fetchone():
+        return jsonify({"error": "USERNAME_TAKEN"}), 409
+
+    pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", [username, pw_hash])
+
+    # 생성된 사용자 조회
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", [username])
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "SIGNUP_FAILED"}), 500
+
+    session['user_id'] = int(row[0])
+    return jsonify({"id": int(row[0]), "username": row[1]}), 201
+
+@bp.route('/auth/delete_account', methods=['POST']) # POST가 다루기 편함
 def delete_account():
-    return jsonify({"message": "계정 삭제 기능은 아직 구현되지 않았습니다."}), 501
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "UNAUTHORIZED"}), 401
+    cursor.execute("DELETE FROM users WHERE id = ?", [user_id])
+    session.pop('user_id', None)
+    return jsonify({"ok": True}), 200

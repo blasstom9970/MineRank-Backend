@@ -11,7 +11,7 @@ def posts():
     else:  # GET 요청 처리
         return jsonify(["server_list"]), 200
     
-@bp.route("comments", methods=['GET', 'POST'])
+@bp.route("/comments", methods=['GET', 'POST'])
 def comments():
     if request.method == "POST":
         return jsonify({"message": "새 게시물이 성공적으로 제출되었습니다."}), 201
