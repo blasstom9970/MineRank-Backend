@@ -33,5 +33,4 @@ class DataBaseManager:
 
         # 테이블/컬럼은 포맷, 값은 파라미터로 전달하여 SQL 인젝션 방지
         #f-string보다 테이블 이름을 ""로 감싸주면서 안정성을 높임
-        cursor.execute(f'INSERT INTO "{table_name}" 
-        ({columns})VALUES ({placeholders});',tuple(data.values()))
+        cursor.execute(f'INSERT INTO "{table_name}" ({columns}) VALUES ({placeholders});', tuple(data.values()))
