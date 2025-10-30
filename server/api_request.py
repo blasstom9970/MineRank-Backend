@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import json
 
 API_URL_TEMPLATE = "https://api.mcsrvstat.us/3/{}"
 # 가독성, 재사용성을 위해 상수로 선언
