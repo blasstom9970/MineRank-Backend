@@ -1,9 +1,10 @@
-from flask import blueprints, session, jsonify, request, current_app
+#Blueprint가 맞음 blueprints는 내장 객체 아님
+from flask import Blueprint, session, jsonify, request, current_app
 from flask_bcrypt import Bcrypt
 from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
 
-bp = blueprints.Blueprint('user', __name__)
+bp = Blueprint('user', __name__)
 
 # Flask-Bcrypt: 앱 컨텍스트에서 동작하므로 전역 인스턴스만 생성
 bcrypt = Bcrypt()
