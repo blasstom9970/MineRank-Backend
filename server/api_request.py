@@ -18,6 +18,9 @@ async def get_server_player_count(ip):
                     return data["players"]["online"]
                 else:
                     return 0 # 서버가 오프라인인 경우 플레이어 0명
+            else:
+                return 0 # 응답 코드가 200이 아닌 경우 플레이어 0명 
+
         except Exception as e:
             print(f"Error fetching server data: {e}")
             return 0
