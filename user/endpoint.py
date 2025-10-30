@@ -68,7 +68,9 @@ def signup():
         return jsonify({"error": "USERNAME_TAKEN"}), 409
 
     pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-    cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", [username, pw_hash])
+    count = cursor.execute("SELECT COUNT(*) FROM users;")
+    count = int(count.fetchone()[0]) + 1 # type: ignore
+    cursor.execute("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", [count, username, pw_hash])
 
     # 생성된 사용자 조회
     cursor.execute("SELECT id, username FROM users WHERE username = ?", [username])
@@ -79,11 +81,7 @@ def signup():
     session['user_id'] = int(row[0])
     return jsonify({"id": int(row[0]), "username": row[1]}), 201
 
-@bp.route('/auth/delete_account', methods=['POST']) # POST가 다루기 편함
-def delete_account():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "UNAUTHORIZED"}), 401
-    cursor.execute("DELETE FROM users WHERE id = ?", [user_id])
+@bp.route('/auth/logout', methods=['POST']) # POST가 다루기 편함
+def logout():
     session.pop('user_id', None)
     return jsonify({"ok": True}), 200

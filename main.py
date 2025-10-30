@@ -10,7 +10,7 @@ load_dotenv()
 # Flask 설정
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-CORS(app)#, resources={r"/*": {"origins": os.getenv("FRONTEND_URL")}}) # 마인랭크 클라만 허용
+CORS(app, supports_credentials=True)  # 세션 쿠키를 사용하려면 필수
 
 # DuckDB 설정
 db_path:str = os.getenv("DUCKDB_PATH") # type: ignore
