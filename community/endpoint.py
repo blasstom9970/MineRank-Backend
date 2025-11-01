@@ -49,7 +49,12 @@ _init_tables()
 
 
 def _get_user_info(cursor, user_id: int):
-    """사용자 정보 조회 헬퍼 함수"""
+    """사용자 정보 조회 헬퍼 함수
+    
+    Args:
+        cursor: Database cursor from the current request context
+        user_id: User ID to fetch information for
+    """
     cursor.execute("SELECT id, username FROM users WHERE id = ?", [user_id])
     row = cursor.fetchone()
     if row:

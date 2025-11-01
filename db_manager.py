@@ -36,7 +36,7 @@ class DataBaseManager:
 
         try:
             cursor.execute(f'DROP TABLE {table_name};')
-        except:
+        except duckdb.CatalogException:
             pass  # 테이블이 없으면 무시
         cursor.execute(f'''
             CREATE TABLE {table_name} (
