@@ -68,9 +68,9 @@ def signup():
         return jsonify({"error": "USERNAME_TAKEN"}), 409
 
     pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-    count = cursor.execute("SELECT COUNT(*) FROM users;")
-    count = int(count.fetchone()[0]) + 1 # type: ignore
-    cursor.execute("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", [count, username, pw_hash])
+    next_id_result = cursor.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM users;")
+    next_id = int(next_id_result.fetchone()[0]) # type: ignore
+    cursor.execute("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", [next_id, username, pw_hash])
 
     # 생성된 사용자 조회
     cursor.execute("SELECT id, username FROM users WHERE username = ?", [username])
