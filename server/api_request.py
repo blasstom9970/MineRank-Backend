@@ -5,9 +5,7 @@ API_URL_TEMPLATE = "https://api.mcsrvstat.us/3/{}"
 # 가독성, 재사용성을 위해 상수로 선언
 
 async def fetch(session, url, timeout = 10): 
-    # timeout이 int 또는 float 타입인지 확인하고 맞으면 ClientTimeout 객체로 변환 
-    # 지금처럼 단순히 정수를 넘기면 aiohttp 버전에 따라 에러가 날 수도 있음
-    if isinstance(timeout, (int, float)):
+    if type(timeout) in [int, float]: # 가독성을 위해 조건부 쉽게 변경
         timeout = aiohttp.ClientTimeout(total = timeout)
     async with session.get(url, timeout = timeout) as response:
         return response
