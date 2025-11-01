@@ -1,39 +1,54 @@
 from flask import Blueprint, jsonify, request, session
 from db_manager import DataBaseManager
-from duckdb import DuckDBPyConnection
 from datetime import datetime
 
 bp = Blueprint('community', __name__)
 db = DataBaseManager()
-cursor: DuckDBPyConnection = db.cursor  # type: ignore
 
-# community_posts 테이블 생성 (데이터 유지)
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS community_posts (
-        id INTEGER PRIMARY KEY,
-        serverId INTEGER NOT NULL,
-        userId INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        views INTEGER DEFAULT 0,
-        recommendations INTEGER DEFAULT 0
-    );
-''')
+# Initialize tables on module import using a temporary cursor
+# This happens once during application startup
+def _init_tables():
+    import duckdb
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    db_path = os.getenv("DUCKDB_PATH")
+    if db_path:
+        conn = duckdb.connect(db_path)
+        cursor = conn.cursor()
+        
+        # community_posts 테이블 생성 (데이터 유지)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS community_posts (
+                id INTEGER PRIMARY KEY,
+                serverId INTEGER NOT NULL,
+                userId INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                views INTEGER DEFAULT 0,
+                recommendations INTEGER DEFAULT 0
+            );
+        ''')
+        
+        # community_comments 테이블 생성 (데이터 유지)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS community_comments (
+                id INTEGER PRIMARY KEY,
+                postId INTEGER NOT NULL,
+                userId INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            );
+        ''')
+        
+        cursor.close()
+        conn.close()
 
-# community_comments 테이블 생성 (데이터 유지)
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS community_comments (
-        id INTEGER PRIMARY KEY,
-        postId INTEGER NOT NULL,
-        userId INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL
-    );
-''')
+_init_tables()
 
 
-def _get_user_info(user_id: int):
+def _get_user_info(cursor, user_id: int):
     """사용자 정보 조회 헬퍼 함수"""
     cursor.execute("SELECT id, username FROM users WHERE id = ?", [user_id])
     row = cursor.fetchone()
@@ -44,6 +59,8 @@ def _get_user_info(user_id: int):
 
 @bp.route("/posts", methods=['GET', 'POST'])
 def posts():
+    cursor = db.get_cursor()
+    
     if request.method == "POST":
         # 로그인 확인
         user_id = session.get('user_id')
@@ -79,7 +96,7 @@ def posts():
         if not row:
             return jsonify({"error": "POST_CREATE_FAILED"}), 500
         
-        user_info = _get_user_info(user_id)
+        user_info = _get_user_info(cursor, user_id)
         
         # 댓글 수 계산
         cursor.execute("SELECT COUNT(*) FROM community_comments WHERE postId = ?", [row[0]])
@@ -118,7 +135,7 @@ def posts():
         
         for row in rows:
             post_id = row[0]
-            user_info = _get_user_info(row[2])
+            user_info = _get_user_info(cursor, row[2])
             
             # 댓글 수 계산
             cursor.execute("SELECT COUNT(*) FROM community_comments WHERE postId = ?", [post_id])
@@ -142,6 +159,8 @@ def posts():
 
 @bp.route("/comments", methods=['GET', 'POST'])
 def comments():
+    cursor = db.get_cursor()
+    
     if request.method == "POST":
         # 로그인 확인
         user_id = session.get('user_id')
@@ -181,7 +200,7 @@ def comments():
         if not row:
             return jsonify({"error": "COMMENT_CREATE_FAILED"}), 500
         
-        user_info = _get_user_info(user_id)
+        user_info = _get_user_info(cursor, user_id)
         
         comment = {
             "id": row[0],
@@ -211,7 +230,7 @@ def comments():
         comments_list = []
         
         for row in rows:
-            user_info = _get_user_info(row[2])
+            user_info = _get_user_info(cursor, row[2])
             
             comments_list.append({
                 "id": row[0],

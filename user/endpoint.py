@@ -1,7 +1,6 @@
 from flask import blueprints, session, jsonify, request, current_app
 from flask_bcrypt import Bcrypt
 from db_manager import DataBaseManager
-from duckdb import DuckDBPyConnection
 
 bp = blueprints.Blueprint('user', __name__)
 
@@ -9,7 +8,6 @@ bp = blueprints.Blueprint('user', __name__)
 bcrypt = Bcrypt()
 
 db = DataBaseManager()
-cursor:DuckDBPyConnection = db.cursor # type: ignore
 
 # db.init_db('users','''
 #     id INTEGER PRIMARY KEY,
@@ -20,6 +18,7 @@ cursor:DuckDBPyConnection = db.cursor # type: ignore
 @bp.route('/users', strict_slashes=False)
 def get_users():
     # 비밀번호는 반환하지 않음 (기존 경로 유지)
+    cursor = db.get_cursor()
     cursor.execute("SELECT id, username FROM users")
     rows = cursor.fetchall()
     users = [{"id": r[0], "username": r[1]} for r in rows]
@@ -41,6 +40,7 @@ def login():
     if not username or not password:
         return jsonify({"error": "USERNAME_OR_PASSWORD_MISSING"}), 400
 
+    cursor = db.get_cursor()
     cursor.execute("SELECT id, username, password FROM users WHERE username = ?", [username])
     row = cursor.fetchone()
     if not row:
@@ -62,6 +62,8 @@ def signup():
     if not username or not password:
         return jsonify({"error": "USERNAME_OR_PASSWORD_MISSING"}), 400
 
+    cursor = db.get_cursor()
+    
     # 중복 체크
     cursor.execute("SELECT 1 FROM users WHERE username = ?", [username])
     if cursor.fetchone():

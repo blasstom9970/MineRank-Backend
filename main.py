@@ -3,7 +3,6 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 from db_manager import DataBaseManager
-import duckdb
 
 load_dotenv()
 
@@ -29,9 +28,13 @@ CORS(
 
 # DuckDB 설정
 db_path:str = os.getenv("DUCKDB_PATH") # type: ignore
-conn = duckdb.connect(db_path)
 print(f"Using DuckDB at: {db_path}")
-DataBaseManager(cursor=conn.cursor())
+db_manager = DataBaseManager(db_path=db_path)
+
+@app.teardown_appcontext
+def teardown_db(exception=None):
+    """Close database connection at the end of each request"""
+    db_manager.close_connection()
 
 # Blueprint 등록
 from server import server_bp

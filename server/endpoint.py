@@ -1,12 +1,10 @@
 from flask import Blueprint, jsonify, request
 import server.api_request as api
 from db_manager import DataBaseManager
-from duckdb import DuckDBPyConnection
 import time
 
 bp = Blueprint('server', __name__)
 db = DataBaseManager()
-cursor:DuckDBPyConnection = db.cursor # type: ignore
 
 server_list = [] # 이어서 불러올 수 있도록 전역변수 화
 
@@ -18,6 +16,7 @@ async def servers():
         db.add_entry('servers', request.get_json())
         return jsonify({"message": "서버 정보가 성공적으로 제출되었습니다."}), 201
     else:  # GET 요청 처리
+        cursor = db.get_cursor()
         cursor.execute("SELECT * FROM servers ORDER BY rank DESC;")
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description] # 칼럼 이름
@@ -42,6 +41,7 @@ def reviews():
         time.sleep(1)  # 처리 지연 시뮬레이션
         return jsonify({"message": "리뷰가 성공적으로 제출되었습니다."}), 201
     else: # GET 요청 처리
+        cursor = db.get_cursor()
         cursor.execute("SELECT * FROM review;")
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description] # 칼럼 이름
@@ -60,6 +60,7 @@ def gallery():
         time.sleep(1)  # 처리 지연 시뮬레이션
         return jsonify({"message": "갤러리 게시물이 성공적으로 제출되었습니다."}), 201
     else:
+        cursor = db.get_cursor()
         cursor.execute("SELECT * FROM gallery;")
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description] # 칼럼 이름
