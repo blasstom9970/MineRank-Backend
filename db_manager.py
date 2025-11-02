@@ -2,9 +2,12 @@ class DataBaseManager:
     __shared_state = {}
     
     def __init__(self, cursor = None):
+        print(f"{cursor}")
         self.__dict__ = self.__shared_state
         if 'cursor' not in self.__shared_state:
             self.__shared_state['cursor'] = cursor
+            print("DataBaseManager 인스턴스가 생성되었습니다.")
+            print(f"Cursor: {self.__shared_state['cursor']}")
 
     def init_db(self, table_name: str, schema: str):
         cursor = self.cursor # type: ignore

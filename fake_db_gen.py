@@ -1,47 +1,72 @@
 from db_manager import DataBaseManager
 import duckdb
+from server.api_request import get_player_count
+from datetime import datetime
 import sqlite3 # DB Base
 
 conn = duckdb.connect('minerank.db')
 DB = DataBaseManager(cursor=conn.cursor())
+cursor:duckdb.DuckDBPyConnection = DB.cursor  # type: ignore
 
-# 커뮤니티 게시물 ID null 수정
-print("\n=== Fixing community_posts with null IDs ===")
-try:
-    cursor = conn.cursor()
-    
-    # null ID를 가진 게시물 조회
-    cursor.execute("SELECT serverId, userId, title, content, timestamp, views, recommendations FROM community_posts WHERE id IS NULL")
-    null_id_posts = cursor.fetchall()
-    
-    if null_id_posts:
-        print(f"Found {len(null_id_posts)} posts with null IDs")
-        
-        # 먼저 null ID 게시물 삭제
-        cursor.execute("DELETE FROM community_posts WHERE id IS NULL")
-        
-        # 다음 사용 가능한 ID 찾기
-        cursor.execute("SELECT COALESCE(MAX(id), 0) FROM community_posts")
-        result = cursor.fetchone()
-        max_id = result[0] if result else 0
-        next_id = max_id + 1
-        
-        # 다시 올바른 ID로 삽입
-        for post in null_id_posts:
-            cursor.execute(
-                '''INSERT INTO community_posts (id, serverId, userId, title, content, timestamp, views, recommendations)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                [next_id, post[0], post[1], post[2], post[3], post[4], post[5], post[6]]
-            )
-            print(f"  - Fixed post: ID {next_id}, title: '{post[2][:30]}...'")
-            next_id += 1
-        
-        print(f"Successfully fixed {len(null_id_posts)} posts")
-    else:
-        print("No posts with null IDs found")
-        
-except Exception as e:
-    print(f"Error fixing community posts: {e}")
+# 서버 테이블 레코드 추가 생성
+cursor.execute("SELECT * FROM servers ORDER BY rank DESC;")
+rows = cursor.fetchall()
+columns = [desc[0] for desc in cursor.description] # 칼럼 이름
 
-print("\n=== Database setup complete ===")
-conn.close()
+old_data = [dict(zip(columns, row)) for row in rows]# 각 행을 딕셔너리로 변환
+print(f"기존 서버 레코드 수: {len(old_data)}")
+
+DB.init_db('servers','''
+    ip TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tags TEXT NOT NULL,
+    bannerUrl TEXT NOT NULL,
+    Maxplayers INTEGER DEFAULT 0,
+    online INTEGER DEFAULT 0,
+    rank INTEGER DEFAULT 0,
+    updated_at TEXT NOT NULL
+''')
+
+new_data = []
+
+for server in old_data:
+    # 플레이어 업데이트
+    ip = server['ip']
+    pl = get_player_count(ip)
+    online = server['online'] = pl['online']
+    maxp = server['Maxplayers'] = pl['max']
+
+    # 랭크 업데이트를 위한 점수 계산
+    occupancy = (online / maxp) if maxp > 0 else 0
+    server['_occupancy'] = occupancy
+
+    # 업데이트 시간 갱신
+    server['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+    new_data.append(server)
+
+# occupancy: 플레이어 수 / 최대 플레이어 수 (max>0), 같으면 online 수로 비교
+for s in new_data:
+    maxp = s.get('Maxplayers') or 0
+    online = s.get('online') or 0
+    occupancy = (online / maxp) if maxp > 0 else 0
+    s['_occupancy'] = occupancy
+
+# 정렬: occupancy DESC, online DESC
+sorted_list = sorted(new_data, key=lambda x: (-x['_occupancy'], -x.get('online', 0)))
+
+# dense rank 부여(동률은 같은 랭크)
+rank_counter = 0
+prev_key = None
+for idx, s in enumerate(sorted_list, start=1):
+    key = (round(s['_occupancy'], 8), s.get('online', 0))  # 부동소수점 비교 안전화
+    if key != prev_key:
+        rank_counter += 1
+        prev_key = key
+    s['rank'] = rank_counter
+    del s['_occupancy'] # 와 이런 방법도 있네 신기하다
+
+# DB에 반영
+for server in sorted_list:
+    DB.add_entry('servers', server)
