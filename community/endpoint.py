@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
-from datetime import datetime
+from datetime import datetime, timezone
 
 bp = Blueprint('community', __name__)
 db = DataBaseManager()
@@ -63,7 +63,7 @@ def posts():
         next_id_result = cursor.fetchone()
         next_id = next_id_result[0] if next_id_result else 1
         
-        timestamp = datetime.utcnow().isoformat() + 'Z'
+        timestamp = datetime.now(timezone.utc).isoformat() + 'Z'
         cursor.execute(
             '''INSERT INTO community_posts (id, serverId, userId, title, content, timestamp, views, recommendations)
                VALUES (?, ?, ?, ?, ?, ?, 0, 0)''',
@@ -165,7 +165,7 @@ def comments():
         next_id_result = cursor.fetchone()
         next_id = next_id_result[0] if next_id_result else 1
         
-        timestamp = datetime.utcnow().isoformat() + 'Z'
+        timestamp = datetime.now(timezone.utc).isoformat() + 'Z'
         cursor.execute(
             '''INSERT INTO community_comments (id, postId, userId, content, timestamp)
                VALUES (?, ?, ?, ?, ?)''',

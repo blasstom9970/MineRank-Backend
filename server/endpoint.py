@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 import server.api_request as api
 from db_manager import DataBaseManager
@@ -18,7 +18,7 @@ async def servers():
         pl = api.get_player_count(ip)
         online = server['online'] = pl['online']
         maxp = server['maxPlayers'] = pl['max']
-        server['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+        server['updated_at'] = datetime.now(timezone.utc).isoformat() + 'Z'
         server['rank'] = 1  # 랭크는 나중에 배정
         db.add_entry('servers', server)
         return jsonify({"message": "서버 정보가 성공적으로 제출되었습니다."}), 201
