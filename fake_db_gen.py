@@ -1,6 +1,6 @@
 from db_manager import DataBaseManager
 import duckdb
-from datetime import datetime
+from datetime import datetime, timezone
 import sqlite3 # DB Base
 
 conn = duckdb.connect('minerank.db')
@@ -43,7 +43,7 @@ for server in old_data:
     server['_occupancy'] = occupancy
 
     # 업데이트 시간 갱신
-    server['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+    server['updated_at'] = datetime.now(timezone.utc).isoformat() + 'Z'
     new_data.append(server)
 
 # 정렬: occupancy DESC, online DESC, name ASC
