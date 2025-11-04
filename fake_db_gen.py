@@ -1,6 +1,5 @@
 from db_manager import DataBaseManager
 import duckdb
-from server.api_request import get_player_count
 from datetime import datetime
 import sqlite3 # DB Base
 
@@ -23,20 +22,21 @@ DB.init_db('servers','''
     description TEXT NOT NULL,
     tags TEXT NOT NULL,
     bannerUrl TEXT NOT NULL,
-    Maxplayers INTEGER DEFAULT 0,
+    maxPlayers INTEGER DEFAULT 0,
     online INTEGER DEFAULT 0,
     rank INTEGER DEFAULT 0,
     updated_at TEXT NOT NULL
 ''')
 
 new_data = []
+from server.api_request import get_player_count
 
 for server in old_data:
     # 플레이어 업데이트
     ip = server['ip']
     pl = get_player_count(ip)
     online = server['online'] = pl['online']
-    maxp = server['Maxplayers'] = pl['max']
+    maxp = server['maxPlayers'] = pl['max']
 
     # 랭크 업데이트를 위한 점수 계산
     occupancy = (online / maxp) if maxp > 0 else 0
@@ -46,27 +46,15 @@ for server in old_data:
     server['updated_at'] = datetime.utcnow().isoformat() + 'Z'
     new_data.append(server)
 
-# occupancy: 플레이어 수 / 최대 플레이어 수 (max>0), 같으면 online 수로 비교
-for s in new_data:
-    maxp = s.get('Maxplayers') or 0
-    online = s.get('online') or 0
-    occupancy = (online / maxp) if maxp > 0 else 0
-    s['_occupancy'] = occupancy
+# 정렬: occupancy DESC, online DESC, name ASC
+sorted_list = sorted(new_data, key=lambda x: (-x['_occupancy'], -x['online'], x['name']))
 
-# 정렬: occupancy DESC, online DESC
-sorted_list = sorted(new_data, key=lambda x: (-x['_occupancy'], -x.get('online', 0)))
-
-# dense rank 부여(동률은 같은 랭크)
-rank_counter = 0
-prev_key = None
+# dense rank 부여(동률은 이름 순)
 for idx, s in enumerate(sorted_list, start=1):
-    key = (round(s['_occupancy'], 8), s.get('online', 0))  # 부동소수점 비교 안전화
-    if key != prev_key:
-        rank_counter += 1
-        prev_key = key
-    s['rank'] = rank_counter
+    s['rank'] = idx
     del s['_occupancy'] # 와 이런 방법도 있네 신기하다
 
 # DB에 반영
 for server in sorted_list:
+    print(f"Adding server {server}")
     DB.add_entry('servers', server)
