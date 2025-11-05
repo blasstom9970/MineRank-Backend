@@ -3,16 +3,30 @@
 from datetime import datetime, timezone
 import server.api_request as api
 from duckdb import DuckDBPyConnection
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def update_player_counts(cursor: DuckDBPyConnection, server_list: list[dict]):
-    """마지막 업데이트로 부터 일정 시간이 지난 서버들의 플레이어 수를 갱신합니다."""
+    """마지막 업데이트로부터 오래된 서버들만 병렬로 갱신하고 DB 업데이트는 순차로 수행합니다."""
+    to_update = []
     for server in server_list:
         last_updated = datetime.fromisoformat(server['updated_at'].replace('Z', '+00:00'))
         elapsed = (datetime.now(timezone.utc) - last_updated).total_seconds()
+        if elapsed >= 3600:
+            to_update.append(server['ip'])
 
-        if elapsed >= 3600:  # 1시간 이후에 업데이트된 서버만 업데이트
-            ip = server['ip']
-            pl = api.get_player_count(ip)
+    if not to_update:
+        return
+
+    # 병렬로 API 호출(블로킹을 메인 쓰레드에서 분리)
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(api.get_player_count, ip): ip for ip in to_update}
+        for fut in as_completed(futures):
+            ip = futures[fut]
+            try:
+                pl = fut.result()
+            except Exception as e:
+                print(f"Failed fetching {ip}: {e}")
+                pl = {"online": 0, "max": 0}
             cursor.execute(
                 "UPDATE servers SET online = ?, maxPlayers = ?, updated_at = ? WHERE ip = ?;",
                 (pl['online'], pl['max'], datetime.now(timezone.utc).isoformat() + 'Z', ip)
