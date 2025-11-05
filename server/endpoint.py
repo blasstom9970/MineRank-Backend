@@ -1,6 +1,5 @@
-from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
-import server.api_request as api
+import server.updater as updater
 from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
 from get_db_dict import get_db_dict
@@ -11,16 +10,17 @@ db = DataBaseManager()
 cursor:DuckDBPyConnection = db.cursor # type: ignore
 
 @bp.route("/servers", methods=['GET', 'POST'])
-async def servers():
+def servers():
     if request.method == "POST":
-        server = request.get_json()
-        ip = server['ip']
-        pl = api.get_player_count(ip)
-        online = server['online'] = pl['online']
-        maxp = server['maxPlayers'] = pl['max']
-        server['updated_at'] = datetime.now(timezone.utc).isoformat() + 'Z'
-        server['rank'] = 1  # 랭크는 나중에 배정
-        db.add_entry('servers', server)
+        # 새로운 서버 추가
+        server = updater.add_new_server(request.get_json())
+        db.add_entry("servers", server)
+
+        # 플레이어 수 갱신
+        server_list = get_db_dict(cursor, "SELECT * FROM servers ORDER BY rank DESC;")
+        updater.update_player_counts(cursor, server_list)
+
+        updater.update_servers_rank(cursor) # 랭크 갱신
         return jsonify({"message": "서버 정보가 성공적으로 제출되었습니다."}), 201
     else:  # GET 요청 처리
         server_list = get_db_dict(cursor, "SELECT * FROM servers ORDER BY rank DESC;")
