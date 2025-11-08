@@ -1,38 +1,29 @@
 from flask import Blueprint, jsonify, request
-import server.api_request as api
+import server.updater as updater
 from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
+from get_db_dict import get_db_dict
 import time
 
 bp = Blueprint('server', __name__)
 db = DataBaseManager()
 cursor:DuckDBPyConnection = db.cursor # type: ignore
 
-server_list = [] # 이어서 불러올 수 있도록 전역변수 화
-
 @bp.route("/servers", methods=['GET', 'POST'])
-async def servers():
-    global server_list
-
+def servers():
     if request.method == "POST":
-        db.add_entry('servers', request.get_json())
+        # 새로운 서버 추가
+        server = updater.add_new_server(request.get_json())
+        db.add_entry("servers", server)
+
+        # 플레이어 수 갱신
+        server_list = get_db_dict(cursor, "SELECT * FROM servers ORDER BY rank DESC;")
+        updater.update_player_counts(cursor, server_list)
+
+        updater.update_servers_rank(cursor) # 랭크 갱신
         return jsonify({"message": "서버 정보가 성공적으로 제출되었습니다."}), 201
     else:  # GET 요청 처리
-        cursor.execute("SELECT * FROM servers ORDER BY rank DESC;")
-        rows = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description] # 칼럼 이름
-
-        server_list += [dict(zip(columns, row)) for row in rows][len(server_list):] # 각 행을 딕셔너리로 변환
-
-        for idx, server in enumerate(server_list):
-            if "onlinePlayers" not in server:
-                server_list[idx]["onlinePlayers"] = await api.get_server_player_count(server["ip"]) # type: ignore
-
-            if "id" not in server:
-                server_list[idx]["id"] = idx + 1  # type: ignore
-
-            if type(server["tags"]) == str:
-                server["tags"] = server["tags"].split(",")
+        server_list = get_db_dict(cursor, "SELECT * FROM servers ORDER BY rank DESC;")
         return jsonify(server_list), 200
 
 @bp.route("/reviews", methods=['GET', 'POST'])
@@ -42,11 +33,7 @@ def reviews():
         time.sleep(1)  # 처리 지연 시뮬레이션
         return jsonify({"message": "리뷰가 성공적으로 제출되었습니다."}), 201
     else: # GET 요청 처리
-        cursor.execute("SELECT * FROM review;")
-        rows = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description] # 칼럼 이름
-
-        review_list = [dict(zip(columns, row)) for row in rows][len(server_list):] # 각 행을 딕셔너리로 변환
+        review_list = get_db_dict(cursor, "SELECT * FROM review;")
 
         for idx, review in enumerate(review_list):
             if "id" not in review:
@@ -60,10 +47,5 @@ def gallery():
         time.sleep(1)  # 처리 지연 시뮬레이션
         return jsonify({"message": "갤러리 게시물이 성공적으로 제출되었습니다."}), 201
     else:
-        cursor.execute("SELECT * FROM gallery;")
-        rows = cursor.fetchall()
-        columns = [desc[0] for desc in cursor.description] # 칼럼 이름
-
-        gallery_list = [dict(zip(columns, row)) for row in rows][len(server_list):] # 각 행을 딕셔너리로 변환
-
+        gallery_list = get_db_dict(cursor, "SELECT * FROM gallery;")
         return jsonify(gallery_list), 200
