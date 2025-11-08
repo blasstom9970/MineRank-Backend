@@ -32,7 +32,7 @@ jobs:
                 - name: DUCKDB_PATH
                   value: minerank.db
                 - name: CORS_ORIGINS
-                  value: minerank-frontend:3000
+                  value: minerank-frontend:80
               buildenv: []
             context:
               git:
