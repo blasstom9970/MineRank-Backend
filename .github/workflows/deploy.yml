@@ -26,7 +26,13 @@ jobs:
             options:
               ports: "5000"
               start: python main.py
-              env: []
+              env:
+                - name: FLASK_SECRET_KEY
+                  value: G%74h%69s%49s%A3S%65cureK%65y
+                - name: DUCKDB_PATH
+                  value: minerank.db
+                - name: CORS_ORIGINS
+                  value: minerank-frontend:3000
               buildenv: []
             context:
               git:
