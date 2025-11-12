@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 import server.updater as updater
 from db_manager import DataBaseManager
 from duckdb import DuckDBPyConnection
-from get_db_dict import get_db_dict
+from server.get_db_dict import get_db_dict
 import time
 
 bp = Blueprint('server', __name__)
