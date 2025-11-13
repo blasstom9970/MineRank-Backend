@@ -2,7 +2,7 @@ name: Deploy to cloudtype
 on:
   push:
     branches:
-      - Deploy
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -20,9 +20,11 @@ jobs:
           token: ${{ secrets.CLOUDTYPE_TOKEN }}
           project: thomasbrilliant9970/minrank
           stage: main
-          yaml: |
+          yaml: >
             name: minerank-backend
+
             app: python@3.12
+
             options:
               ports: "5000"
               start: python main.py
@@ -32,7 +34,7 @@ jobs:
                 - name: DUCKDB_PATH
                   value: minerank.db
                 - name: CORS_ORIGINS
-                  value: minerank-frontend:80
+                  value: https://web-minerank-frontend-mhbi0tawac3d1b50.sel3.cloudtype.app
               buildenv: []
             context:
               git:
