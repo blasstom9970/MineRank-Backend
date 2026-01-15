@@ -7,32 +7,6 @@ bp = Blueprint('community', __name__)
 db = DataBaseManager()
 cursor: DuckDBPyConnection = db.cursor  # type: ignore
 
-# community_posts 테이블 생성 (데이터 유지)
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS community_posts (
-        id INTEGER PRIMARY KEY,
-        serverId INTEGER NOT NULL,
-        userId INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        views INTEGER DEFAULT 0,
-        recommendations INTEGER DEFAULT 0
-    );
-''')
-
-# community_comments 테이블 생성 (데이터 유지)
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS community_comments (
-        id INTEGER PRIMARY KEY,
-        postId INTEGER NOT NULL,
-        userId INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL
-    );
-''')
-
-
 def _get_user_info(user_id: int):
     """사용자 정보 조회 헬퍼 함수"""
     cursor.execute("SELECT id, username FROM users WHERE id = ?", [user_id])
@@ -40,7 +14,6 @@ def _get_user_info(user_id: int):
     if row:
         return {"id": row[0], "username": row[1], "password": ""}
     return None
-
 
 @bp.route("/posts", methods=['GET', 'POST'])
 def posts():
